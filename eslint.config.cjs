@@ -8,19 +8,22 @@ module.exports = [
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+        jest: 'readonly', // Para Jest
+      },
     },
     plugins: {
       import: eslintPluginImport,
       jest: eslintPluginJest,
     },
-    env: {
-      node: true,
-      es2020: true,
-      'jest/globals': true,
-    },
     rules: {
       ...airbnbBaseConfig.rules,
-      'no-console': 'off', // Permitido en Node.js para depuración.
+      'no-console': 'off', // Permitir console.log
       'import/extensions': [
         'error',
         'ignorePackages',
