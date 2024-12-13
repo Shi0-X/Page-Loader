@@ -1,4 +1,4 @@
-name: Page-Loader-Check.js CI
+name: Automated Testing and Linting.js CI
 
 on:
   push:
