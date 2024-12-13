@@ -4,11 +4,12 @@
   "description": "[![Actions Status](https://github.com/Shi0-X/fullstack-javascript-project-138/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Shi0-X/fullstack-javascript-project-138/actions)",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
-    "url": "\"https://github.com/Shi0-X/Page-Loader.git\""
+    "url": "https://github.com/Shi0-X/Page-Loader.git"
   },
   "author": "",
   "license": "ISC",
