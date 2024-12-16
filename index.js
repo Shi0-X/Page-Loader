@@ -1,10 +1,24 @@
 import axios from 'axios';
-import { Command } from 'commander';
-import { promises as fs } from 'fs';
 import path from 'path';
+import { promises as fs } from 'fs';
+import { Command } from 'commander';
 
-console.log('Axios adapter in use (index.js):', axios.defaults.adapter?.name || 'default');
+export const downloadPage = async (url, outputDir) => {
+  const urlWithoutProtocol = url.replace(/https?:\/\//, '');
+  const fileName = `${urlWithoutProtocol.replace(/[^a-zA-Z0-9]/g, '-')}.html`;
+  const filePath = path.join(outputDir, fileName);
 
+  console.log(`Saving file to: ${filePath}`);
+  const { data } = await axios.get(url);
+
+  await fs.mkdir(outputDir, { recursive: true });
+  await fs.writeFile(filePath, data);
+
+  console.log(`File successfully saved at: ${filePath}`);
+  return filePath;
+};
+
+// CLI Logic
 const program = new Command();
 
 program
@@ -14,19 +28,11 @@ program
   .option('-o, --output [dir]', 'output dir', process.cwd())
   .argument('<url>', 'URL to download')
   .action(async (url, options) => {
-    const outputDir = options.output;
-    const urlWithoutProtocol = url.replace(/https?:\/\//, '');
-    const fileName = `${urlWithoutProtocol.replace(/[^a-zA-Z0-9]/g, '-')}.html`;
-    const filePath = path.join(outputDir, fileName);
-
     try {
-      console.log('Requesting URL:', url);
-      const { data } = await axios.get(url); // Descargar página
-      await fs.mkdir(outputDir, { recursive: true });
-      await fs.writeFile(filePath, data);
-      console.log(`Page was downloaded as '${filePath}'`);
+      const filePath = await downloadPage(url, options.output);
+      console.log(`CLI Output: ${filePath}`);
     } catch (error) {
-      console.error(`Error downloading the page: ${error.message}`);
+      console.error('Error:', error.message);
       process.exit(1);
     }
   });

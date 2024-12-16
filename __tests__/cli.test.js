@@ -1,41 +1,64 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { promises as fs } from 'fs';
+import nock from 'nock';
 import path from 'path';
+import { promises as fs } from 'fs';
 
-const execAsync = promisify(exec);
-const cliPath = path.resolve('index.js');
-const outputDir = path.resolve('tmp');
-const testUrl = 'https://example.com';
-const expectedFileName = 'example-com.html';
-const expectedFilePath = path.join(outputDir, expectedFileName);
+describe('PageLoader CLI with Nock', () => {
+  const testHtml = `<!doctype html>
+<html>
+<head><title>Example Domain</title></head>
+<body><h1>Example Domain</h1></body>
+</html>`;
 
-describe('PageLoader CLI', () => {
-  beforeAll(async () => {
-    // Crear directorio de salida antes de ejecutar pruebas
-    await fs.mkdir(outputDir, { recursive: true });
+  const tempDir = path.join(process.cwd(), 'temp-test-dir');
+  const expectedPath = path.join(tempDir, 'example-com.html');
+
+  beforeAll(() => {
+    console.log('Configuring Nock...');
+    nock('https://example.com')
+      .get('/')
+      .reply(200, testHtml);
   });
 
-  afterAll(async () => {
-    // Limpiar archivos creados durante las pruebas
-    await fs.rm(outputDir, { recursive: true, force: true });
+  beforeEach(async () => {
+    // Limpiar y crear el directorio fijo
+    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.mkdir(tempDir, { recursive: true });
+
+    // Configurar argumentos CLI
+    process.argv = [
+      'node',
+      'index.js',
+      '--output',
+      tempDir,
+      'https://example.com',
+    ];
   });
 
-  test('downloads a page and saves it to the specified directory', async () => {
-    // Ejecutar la CLI
-    const { stdout } = await execAsync(`node ${cliPath} --output ${outputDir} ${testUrl}`);
+  afterAll(() => {
+    nock.cleanAll();
+  });
 
-    // Verificar mensaje en consola
-    console.log('CLI Output:', stdout);
-    expect(stdout).toContain(`Page was downloaded as '${expectedFilePath}'`);
+  test('CLI downloads a page and verifies mocked content', async () => {
+    console.log(`Temporary directory: ${tempDir}`);
+    console.log(`Expected file path: ${expectedPath}`);
 
-    // Verificar que el archivo fue creado
-    const fileExists = await fs.access(expectedFilePath).then(() => true).catch(() => false);
+    // Importar el CLI y esperar a que termine
+    const cliPromise = import('../index.js');
+    await cliPromise;
+
+    // Esperar brevemente para asegurar la escritura completa del archivo
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verificar si el archivo existe
+    const fileExists = await fs.access(expectedPath).then(() => true).catch(() => false);
+    console.log('File exists:', fileExists);
     expect(fileExists).toBe(true);
 
-    // Verificar que el contenido del archivo no esté vacío
-    const fileContent = await fs.readFile(expectedFilePath, 'utf-8');
-    console.log('File content:', fileContent);
-    expect(fileContent.length).toBeGreaterThan(0);
+    // Verificar el contenido del archivo
+    const fileContent = await fs.readFile(expectedPath, 'utf-8');
+    expect(fileContent).toBe(testHtml);
+
+    // Verificar que Nock manejó la solicitud
+    expect(nock.isDone()).toBe(true);
   });
 });
