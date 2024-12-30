@@ -45,6 +45,10 @@ Aquí se muestra una animación o GIF de cómo funciona la utilidad:
 
 https://www.youtube.com/watch?v=t1mdQqiZWMw
 
+Se implementa descarga de imagenes:
+
+https://youtu.be/J2NRMq0D-_I
+
 Pruebas
 Para ejecutar las pruebas:
 

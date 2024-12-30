@@ -1,76 +1,88 @@
-import nock from 'nock';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { fileURLToPath } from 'url';
+import nock from 'nock';
+import downloadPage from '../index.js';
 
-describe('PageLoader CLI with Nock', () => {
-  const testHtml = `<!doctype html>
-<html>
-<head><title>Example Domain</title></head>
-<body>
-  <h1>Example Domain</h1>
-  <img src="/images/logo.png" alt="Logo">
-</body>
-</html>`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  const tempDir = path.join(process.cwd(), 'temp-test-dir');
-  const expectedHtmlPath = path.join(tempDir, 'example-com.html');
-  const filesDir = path.join(tempDir, 'example-com_files');
-  const expectedImagePath = path.join(filesDir, 'images-logo.png');
-
-  beforeAll(() => {
-    console.log('Configuring Nock...');
-    nock('https://example.com')
-      .get('/') // Responde con el HTML de prueba
-      .reply(200, testHtml)
-      .get('/images/logo.png') // Responde con un archivo de imagen simulado
-      .reply(200, 'image-content', { 'Content-Type': 'image/png' })
-      .persist(); // Mantén las rutas disponibles para solicitudes repetidas
-  });
+describe('PageLoader with Fixtures', () => {
+  const fixturesDir = path.join(__dirname, '../__fixtures__');
+  const outputDir = path.join(fixturesDir, 'output');
+  const expectedDir = path.join(fixturesDir, 'expected');
 
   beforeEach(async () => {
-    // Limpiar y preparar el directorio de pruebas
-    await fs.rm(tempDir, { recursive: true, force: true });
-    await fs.mkdir(tempDir, { recursive: true });
+    await fs.rm(outputDir, { recursive: true, force: true });
+    await fs.mkdir(outputDir, { recursive: true });
 
-    // Configurar argumentos de la CLI
-    process.argv = [
-      'node',
-      'index.js',
-      '--output',
-      tempDir,
-      'https://example.com',
-    ];
+    // Mock para las respuestas simuladas
+    nock('https://google.com')
+      .get('/')
+      .reply(
+        200,
+        `<!DOCTYPE html>
+        <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <title>Google</title>
+          </head>
+          <body>
+            <h1>Welcome to Google</h1>
+            <img src="/logo.png" alt="Google Logo" />
+            <p>
+              Visit our <a href="/about">About page</a> for more information.
+            </p>
+          </body>
+        </html>`
+      );
+
+    nock('https://google.com')
+      .get('/logo.png')
+      .reply(200, 'fake-image-content', { 'Content-Type': 'image/png' });
   });
 
-  afterAll(() => {
-    nock.cleanAll(); // Limpia los interceptores
-  });
+  test('Downloads HTML and resources correctly', async () => {
+    const outputHtmlPath = path.join(outputDir, 'google.com.html');
+    const expectedHtmlPath = path.join(expectedDir, 'google.com.html');
+    const expectedFilesDir = path.join(expectedDir, 'google.com_files');
+    const outputFilesDir = path.join(outputDir, 'google.com_files');
 
-  test('CLI downloads HTML and images, modifies the HTML correctly', async () => {
-    console.log(`Temporary directory: ${tempDir}`);
-    console.log(`Expected file path: ${expectedHtmlPath}`);
+    // Llama la función principal
+    await downloadPage('https://google.com', outputDir);
 
-    // Importar la CLI y esperar a que termine
-    const cliPromise = import('../index.js');
-    await cliPromise;
+    // Verifica el archivo HTML descargado
+    const outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
+    const expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
 
-    // Verificar si el archivo HTML existe
-    const fileExists = await fs.access(expectedHtmlPath).then(() => true).catch(() => false);
-    expect(fileExists).toBe(true);
+    // Normalización para eliminar diferencias triviales
+    const normalizeHtml = (html) =>
+      html
+        .replace(/\\/g, '/') // Reemplaza los separadores de Windows por '/'
+        .replace(/\s+/g, ' ') // Elimina espacios y saltos de línea extras
+        .replace(/>\s+</g, '><') // Elimina espacios entre etiquetas
+        .replace(/(\s)\/>/g, '>') // Elimina espacios antes de "/>" en etiquetas autocontenidas
+        .replace(/\/>/g, '>') // Remueve las barras de cierre innecesarias en HTML5
+        .trim(); // Remueve espacios en los extremos
 
-    // Verificar si el directorio _files existe
-    const dirExists = await fs.access(filesDir).then(() => true).catch(() => false);
-    expect(dirExists).toBe(true);
+    expect(normalizeHtml(outputHtml)).toEqual(normalizeHtml(expectedHtml));
 
-    // Verificar si la imagen se descargó correctamente
-    const imageExists = await fs.access(expectedImagePath).then(() => true).catch(() => false);
-    expect(imageExists).toBe(true);
+    // Verifica los recursos descargados
+    const outputFiles = await fs.readdir(outputFilesDir);
+    const expectedFiles = await fs.readdir(expectedFilesDir);
+    expect(outputFiles.sort()).toEqual(expectedFiles.sort());
 
-    // Verificar que el HTML modificado apunta al archivo local
-    const fileContent = await fs.readFile(expectedHtmlPath, 'utf-8');
-    expect(fileContent).toContain('example-com_files/images-logo.png');
+    // Verifica el contenido de cada recurso
+    await Promise.all(
+      expectedFiles.map(async (file) => {
+        const outputFilePath = path.join(outputFilesDir, file);
+        const expectedFilePath = path.join(expectedFilesDir, file);
+        const outputContent = await fs.readFile(outputFilePath);
+        const expectedContent = await fs.readFile(expectedFilePath);
 
-    // Verificar que Nock manejó todas las solicitudes
-    expect(nock.isDone()).toBe(true);
+        // Compara buffers binarios para recursos
+        expect(Buffer.compare(outputContent, expectedContent)).toBe(0);
+      })
+    );
   });
 });
