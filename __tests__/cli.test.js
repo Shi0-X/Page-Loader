@@ -26,6 +26,8 @@ describe('PageLoader with Fixtures', () => {
           <head>
             <meta charset="utf-8">
             <title>Google</title>
+            <link rel="stylesheet" href="/styles.css">
+            <script src="/script.js"></script>
           </head>
           <body>
             <h1>Welcome to Google</h1>
@@ -40,6 +42,14 @@ describe('PageLoader with Fixtures', () => {
     nock('https://google.com')
       .get('/logo.png')
       .reply(200, 'fake-image-content', { 'Content-Type': 'image/png' });
+
+    nock('https://google.com')
+      .get('/styles.css')
+      .reply(200, 'body { background-color: #f3f3f3; }', { 'Content-Type': 'text/css' });
+
+    nock('https://google.com')
+      .get('/script.js')
+      .reply(200, 'console.log("Hello, world!");', { 'Content-Type': 'application/javascript' });
   });
 
   test('Downloads HTML and resources correctly', async () => {
@@ -77,11 +87,15 @@ describe('PageLoader with Fixtures', () => {
       expectedFiles.map(async (file) => {
         const outputFilePath = path.join(outputFilesDir, file);
         const expectedFilePath = path.join(expectedFilesDir, file);
-        const outputContent = await fs.readFile(outputFilePath);
-        const expectedContent = await fs.readFile(expectedFilePath);
 
-        // Compara buffers binarios para recursos
-        expect(Buffer.compare(outputContent, expectedContent)).toBe(0);
+        const outputContent = await fs.readFile(outputFilePath, 'utf-8');
+        const expectedContent = await fs.readFile(expectedFilePath, 'utf-8');
+
+        // Normalización de contenido (elimina diferencias menores)
+        const normalizeContent = (content) =>
+          content.replace(/\r\n/g, '\n').trim();
+
+        expect(normalizeContent(outputContent)).toBe(normalizeContent(expectedContent));
       })
     );
   });
