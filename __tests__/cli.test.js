@@ -2,6 +2,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { fileURLToPath } from 'url';
 import nock from 'nock';
+import fetch from 'node-fetch'; // Para la validación de los mocks
 import downloadPage from '../index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,11 @@ describe('PageLoader with Fixtures', () => {
   beforeEach(async () => {
     await fs.rm(outputDir, { recursive: true, force: true });
     await fs.mkdir(outputDir, { recursive: true });
+
+    // Activar depuración de nock para verificar coincidencias
+    nock.emitter.on('no match', (req) => {
+      console.log('No match for request:', req);
+    });
 
     // Mock para las respuestas simuladas
     nock('https://google.com')
@@ -52,6 +58,19 @@ describe('PageLoader with Fixtures', () => {
       .reply(200, 'console.log("Hello, world!");', { 'Content-Type': 'application/javascript' });
   });
 
+  afterEach(() => {
+    // Limpia todos los mocks después de cada prueba
+    nock.cleanAll();
+  });
+
+  test('Mock works correctly', async () => {
+    // Validación para asegurar que el mock responde correctamente
+    const response = await fetch('https://google.com/');
+    const body = await response.text();
+    console.log('Mocked response:', body);
+    expect(body).toContain('Welcome to Google');
+  });
+
   test('Downloads HTML and resources correctly', async () => {
     const outputHtmlPath = path.join(outputDir, 'google.com.html');
     const expectedHtmlPath = path.join(expectedDir, 'google.com.html');
@@ -59,6 +78,7 @@ describe('PageLoader with Fixtures', () => {
     const outputFilesDir = path.join(outputDir, 'google.com_files');
 
     // Llama la función principal
+    console.log('Downloading page from https://google.com');
     await downloadPage('https://google.com', outputDir);
 
     // Verifica el archivo HTML descargado
