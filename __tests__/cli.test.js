@@ -36,7 +36,7 @@ describe('PageLoader with Fixtures', () => {
             <script src="/script.js"></script>
           </head>
           <body>
-            <h1>Welcome to Google</h1>
+            <h1>Welcome to Google!</h1>
             <img src="/logo.png" alt="Google Logo" />
             <p>
               Visit our <a href="/about">About page</a> for more information.
