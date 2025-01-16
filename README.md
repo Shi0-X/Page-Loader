@@ -41,13 +41,16 @@ Salida esperada:
 
 ./output/example-com.html
 Demostración
-Aquí se muestra una animación o GIF de cómo funciona la utilidad:
 
 https://www.youtube.com/watch?v=t1mdQqiZWMw
 
 Se implementa descarga de imagenes:
 
 https://youtu.be/J2NRMq0D-_I
+
+Desmostracion modo Debug:
+
+https://youtu.be/uU4QIdysCuQ
 
 Pruebas
 Para ejecutar las pruebas:
