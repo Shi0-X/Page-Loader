@@ -3,36 +3,43 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { URL } from 'url';
 import debug from 'debug';
+import { Listr } from 'listr2';
 
-// Configurar debug para page-loader
+// Configurar debug para page-loader y axios
 const log = debug('page-loader');
+const axiosLog = debug('axios');
+
+axios.interceptors.request.use((config) => {
+  axiosLog(`Starting request to: ${config.url}`);
+  return config;
+});
+
+axios.interceptors.response.use(
+  (response) => {
+    axiosLog(`Response received with status: ${response.status}`);
+    return response;
+  },
+  (error) => {
+    axiosLog(`Request failed: ${error.message}`);
+    return Promise.reject(error);
+  }
+);
 
 const writeToLogFile = async (message, logFilePath) => {
   try {
     await fs.appendFile(logFilePath, `${message}\n`);
   } catch (error) {
-    console.error(`Failed to write to log file at ${logFilePath}. Error: ${error.message}`);
-    throw error;
+    log(`Failed to write to log file at ${logFilePath}. Error: ${error.message}`);
   }
 };
 
 const handleErrorLogging = async (error) => {
   const currentLogFile = './error.log';
-  const tempLogFile = path.join(process.env.TEMP || '/tmp', 'error.log');
-
-  // Intenta registrar el error en el archivo de log principal
   try {
     await writeToLogFile(error.message, currentLogFile);
-    console.error(`Failed to complete operation. See log at ${currentLogFile}`);
-  } catch (writeError) {
-    console.error(`Failed to write to error log in the current directory. Error: ${writeError.message}`);
-    try {
-      // Si falla, intenta registrar el error en un archivo temporal
-      await writeToLogFile(error.message, tempLogFile);
-      console.error(`Logged error to temporary file at ${tempLogFile}`);
-    } catch (tempWriteError) {
-      console.error(`Failed to write to temporary log file. Error: ${tempWriteError.message}`);
-    }
+    log(`Logged error to: ${currentLogFile}`);
+  } catch (logError) {
+    console.error(`Failed to log error. Original error: ${error.message}`);
   }
 };
 
@@ -52,19 +59,17 @@ const downloadPage = async (url, outputDir) => {
   try {
     const cheerio = await import('cheerio');
     const urlObj = new URL(url);
-    const urlWithoutProtocol = url.replace(/https?:\/\//, '');
-    const fileName = `${urlWithoutProtocol}.html`;
-    const filesDir = `${urlWithoutProtocol}_files`;
+    const sanitizedHost = urlObj.host.replace(/[^\w.-]/g, '_');
+    const fileName = `${sanitizedHost}.html`;
+    const filesDir = `${sanitizedHost}_files`;
     const filesPath = path.join(outputDir, filesDir);
     const filePath = path.join(outputDir, fileName);
-
-    await fs.mkdir(outputDir, { recursive: true });
 
     log(`Saving file to: ${filePath}`);
     const { data } = await axios.get(url);
 
     const $ = cheerio.load(data);
-    const resourcePromises = [];
+    const tasks = new Listr([], { concurrent: true });
 
     const processResource = (element, attr) => {
       const src = $(element).attr(attr);
@@ -73,11 +78,12 @@ const downloadPage = async (url, outputDir) => {
         const resourceFileName = path.basename(src);
         const resourcePath = path.join(filesPath, resourceFileName);
 
-        resourcePromises.push(
-          downloadResource(resourceUrl, resourcePath).then(() => {
-            $(element).attr(attr, path.join(filesDir, resourceFileName));
-          })
-        );
+        tasks.add({
+          title: `Downloading resource: ${resourceUrl}`,
+          task: () => downloadResource(resourceUrl, resourcePath),
+        });
+
+        $(element).attr(attr, path.join(filesDir, resourceFileName));
       }
     };
 
@@ -85,7 +91,8 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    await Promise.all(resourcePromises);
+    await fs.mkdir(outputDir, { recursive: true });
+    await tasks.run();
     await fs.writeFile(filePath, $.html());
 
     log(`File successfully saved at: ${filePath}`);
