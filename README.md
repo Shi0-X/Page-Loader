@@ -52,6 +52,10 @@ Desmostracion modo Debug:
 
 https://youtu.be/uU4QIdysCuQ
 
+Demostración Manejo de Errores:
+
+https://youtu.be/xqnglOqrvpc
+
 Pruebas
 Para ejecutar las pruebas:
 
