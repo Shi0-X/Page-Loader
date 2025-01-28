@@ -100,7 +100,7 @@ const downloadPage = async (url, outputDir) => {
   } catch (error) {
     console.error(error.message);
     await handleErrorLogging(error);
-    process.exit(1);
+    // process.exit(1);
   }
 };
 
