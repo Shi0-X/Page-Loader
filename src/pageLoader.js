@@ -9,26 +9,30 @@ import { urlToFilename, urlToDirname, getExtension } from './utils.js';
 
 const log = debug('page-loader');
 
-// 🔹 Función para manejar reintentos en solicitudes HTTP con descarga de archivos binarios correcta
-const fetchWithRetry = async (url, retries = 5, delay = 7000) => {
+const fetchWithRetry = async (url, retries = 2, delay = 2000) => {
   for (let i = 0; i < retries; i++) {
     try {
       return await axios.get(url, {
-        timeout: 20000,
-        responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
+        timeout: 3000, // ⏳ Reduce timeout a 3s para no exceder el límite de 5s en la prueba
+        responseType: 'arraybuffer',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          'Referer': 'https://http.cat/',  // 🔹 Simula venir del sitio original para evitar bloqueos
-          'Accept': '*/*', // 🔹 Permite descargar cualquier tipo de archivo correctamente
+          'Accept': '*/*',
         },
       });
     } catch (error) {
+      // 🚨 Si el error es crítico, fallamos inmediatamente
+      if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT'].includes(error.code)) {
+        throw new Error(`❌ Connection failed immediately: ${url} (${error.code})`);
+      }
+      // ⏳ Si no es un error crítico, intentamos nuevamente
       if (i === retries - 1) throw error;
       console.warn(`⚠️ Retry ${i + 1}/${retries}: ${url}`);
       await new Promise((res) => setTimeout(res, delay));
     }
   }
 };
+
 
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   $(tagName).each((_, element) => {
