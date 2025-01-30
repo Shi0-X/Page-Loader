@@ -47,11 +47,14 @@ const handleErrorLogging = async (error) => {
 
 // 🔹 Normalización de rutas para evitar absolutas incorrectas
 const normalizePath = (resourcePath, outputDir) => {
-  const normalized = path.join(outputDir, resourcePath.replace(/^\/+/, ''));
-  if (normalized.startsWith('/sys/') || path.isAbsolute(resourcePath)) {
+  const resolvedPath = path.join(outputDir, resourcePath.replace(/^\/+/, ''));
+
+  // Permitir rutas relativas dentro del directorio de salida
+  if (!resolvedPath.startsWith(outputDir)) {
     throw new Error(`Invalid path: ${resourcePath} is not allowed.`);
   }
-  return normalized;
+
+  return resolvedPath;
 };
 
 // 🔹 Validación de rutas antes de escribir archivos
@@ -59,9 +62,9 @@ const ensureValidPath = async (filePath) => {
   const dirPath = path.dirname(filePath);
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
-    
+
     if (stats && stats.isFile()) {
-      throw new Error(`Cannot create directory: ${dirPath} is already a file`);
+      throw new Error(`Cannot create directory: ${dirPath} is already a file.`);
     }
 
     if (!stats) {
@@ -76,10 +79,10 @@ const ensureValidPath = async (filePath) => {
 const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
-    
+
     // Normalizar el path para evitar errores
     const safePath = normalizePath(resourcePath, outputDir);
-    
+
     await ensureValidPath(safePath);
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(safePath, response.data);
@@ -118,6 +121,7 @@ const downloadPage = async (url, outputDir) => {
         const resourceFileName = path.basename(src);
         const resourcePath = path.join(filesDir, resourceFileName);
 
+        // Permitir solo rutas dentro del directorio de salida
         if (!resourcePath.startsWith(filesDir)) {
           log(`Skipping invalid path: ${resourcePath}`);
           return;
