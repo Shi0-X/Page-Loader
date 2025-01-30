@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "[![Actions Status](https://github.com/Shi0-X/fullstack-javascript-project-138/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Shi0-X/fullstack-javascript-project-138/actions)",
-  "main": "index.js",
+  "main": "src/pageLoader.js",
   "bin": {
     "page-loader": "./bin/cli.js"
   },
