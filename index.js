@@ -45,19 +45,31 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Verifica si una ruta es un archivo antes de intentar crear un directorio
+// 🔹 Validación de directorios antes de crearlos
 const ensureDirectoryExists = async (dirPath) => {
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
-    if (stats) {
-      if (stats.isFile()) {
-        throw new Error(`Cannot create directory: ${dirPath} is already a file`);
-      }
-    } else {
+    
+    if (stats && stats.isFile()) {
+      throw new Error(`Cannot create directory: ${dirPath} is already a file`);
+    }
+
+    if (!stats) {
       await fs.mkdir(dirPath, { recursive: true });
     }
   } catch (error) {
     throw new Error(`Failed to create directory: ${dirPath}. Error: ${error.message}`);
+  }
+};
+
+// 🔹 Validación antes de escribir archivos
+const validateFilePath = async (filePath) => {
+  const dirPath = path.dirname(filePath);
+
+  try {
+    await ensureDirectoryExists(dirPath);
+  } catch (error) {
+    throw new Error(`Invalid path: Cannot create file at ${filePath}. ${error.message}`);
   }
 };
 
@@ -67,8 +79,7 @@ const downloadResource = async (resourceUrl, resourcePath) => {
     log(`Attempting to download: ${resourceUrl}`);
 
     // Validar directorio antes de escribir archivos
-    const dirPath = path.dirname(resourcePath);
-    await ensureDirectoryExists(dirPath);
+    await validateFilePath(resourcePath);
 
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(resourcePath, response.data);
@@ -120,9 +131,9 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Verificar existencia de directorios antes de escribir archivos
-    await ensureDirectoryExists(outputDir);
-    await ensureDirectoryExists(filesPath);
+    // 🔹 Validar directorios antes de escribir archivos
+    await validateFilePath(filePath);
+    await validateFilePath(filesPath);
 
     await tasks.run();
     await fs.writeFile(filePath, $.html());
