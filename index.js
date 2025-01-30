@@ -45,14 +45,16 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Verifica si una ruta ya es un archivo antes de intentar crear un directorio
+// 🔹 Verifica si una ruta es un archivo antes de intentar crear un directorio
 const ensureDirectoryExists = async (dirPath) => {
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
     if (stats && stats.isFile()) {
-      throw new Error(`Failed to create directory: ${dirPath} is a file`);
+      throw new Error(`Cannot create directory: ${dirPath} is already a file`);
     }
-    await fs.mkdir(dirPath, { recursive: true });
+    if (!stats) {
+      await fs.mkdir(dirPath, { recursive: true });
+    }
   } catch (error) {
     throw new Error(`Failed to create directory: ${dirPath}. Error: ${error.message}`);
   }
@@ -130,11 +132,11 @@ const downloadPage = async (url, outputDir) => {
     console.error(error.message);
     await handleErrorLogging(error);
 
-    // 🔹 No terminar el proceso en entornos de prueba
-    if (process.env.NODE_ENV !== 'test') {
-      process.exit(1);
+    // 🔹 Lanzar el error correctamente en entornos de prueba
+    if (process.env.NODE_ENV === 'test') {
+      return Promise.reject(error);
     } else {
-      throw error;
+      process.exit(1);
     }
   }
 };
