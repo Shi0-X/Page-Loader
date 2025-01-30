@@ -5,15 +5,15 @@ import { URL } from 'url';
 import debug from 'debug';
 import { Listr } from 'listr2';
 
-// Configurar debug para page-loader y axios
+// Configuración de debug
 const log = debug('page-loader');
 const axiosLog = debug('axios');
 
+// Configurar axios para loggear cada solicitud
 axios.interceptors.request.use((config) => {
   axiosLog(`Starting request to: ${config.url}`);
   return config;
 });
-
 axios.interceptors.response.use(
   (response) => {
     axiosLog(`Response received with status: ${response.status}`);
@@ -25,6 +25,7 @@ axios.interceptors.response.use(
   }
 );
 
+// Función para escribir logs de errores
 const writeToLogFile = async (message, logFilePath) => {
   try {
     await fs.appendFile(logFilePath, `${message}\n`);
@@ -33,6 +34,7 @@ const writeToLogFile = async (message, logFilePath) => {
   }
 };
 
+// Manejo de errores
 const handleErrorLogging = async (error) => {
   const currentLogFile = './error.log';
   try {
@@ -43,20 +45,27 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Manejo de errores con Nock y creación de directorios seguros
+// 🔹 Verifica si una ruta ya es un archivo antes de intentar crear un directorio
+const ensureDirectoryExists = async (dirPath) => {
+  try {
+    const stats = await fs.stat(dirPath).catch(() => null);
+    if (stats && stats.isFile()) {
+      throw new Error(`Failed to create directory: ${dirPath} is a file`);
+    }
+    await fs.mkdir(dirPath, { recursive: true });
+  } catch (error) {
+    throw new Error(`Failed to create directory: ${dirPath}. Error: ${error.message}`);
+  }
+};
+
+// Función para descargar recursos
 const downloadResource = async (resourceUrl, resourcePath) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
 
-    // Crear el directorio si no existe
+    // Validar directorio antes de escribir archivos
     const dirPath = path.dirname(resourcePath);
-    try {
-      await fs.mkdir(dirPath, { recursive: true });
-    } catch (mkdirError) {
-      if (mkdirError.code !== 'EEXIST') {
-        throw new Error(`Failed to create directory: ${dirPath}. Error: ${mkdirError.message}`);
-      }
-    }
+    await ensureDirectoryExists(dirPath);
 
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(resourcePath, response.data);
@@ -71,6 +80,7 @@ const downloadResource = async (resourceUrl, resourcePath) => {
   }
 };
 
+// Función principal para descargar una página y sus recursos
 const downloadPage = async (url, outputDir) => {
   try {
     const cheerio = await import('cheerio');
@@ -107,15 +117,9 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Crear directorios seguros
-    try {
-      await fs.mkdir(outputDir, { recursive: true });
-      await fs.mkdir(filesPath, { recursive: true });
-    } catch (mkdirError) {
-      if (mkdirError.code !== 'EEXIST') {
-        throw new Error(`Failed to create directory: ${mkdirError.message}`);
-      }
-    }
+    // 🔹 Crear directorios seguros antes de escribir archivos
+    await ensureDirectoryExists(outputDir);
+    await ensureDirectoryExists(filesPath);
 
     await tasks.run();
     await fs.writeFile(filePath, $.html());
@@ -126,11 +130,11 @@ const downloadPage = async (url, outputDir) => {
     console.error(error.message);
     await handleErrorLogging(error);
 
-    // 🔹 Evita que el proceso se termine abruptamente en entornos de prueba
+    // 🔹 No terminar el proceso en entornos de prueba
     if (process.env.NODE_ENV !== 'test') {
       process.exit(1);
     } else {
-      throw error; // Permitir que las pruebas capturen el error correctamente
+      throw error;
     }
   }
 };
