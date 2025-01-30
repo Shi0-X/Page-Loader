@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import downloadPage from '../index.js'; // Importa como default
+import downloadPage from '../src/pageLoader.js'; // Importa como default
 import { program } from 'commander';
 import path from 'path';
 
