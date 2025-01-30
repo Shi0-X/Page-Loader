@@ -45,8 +45,10 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Validación de directorios antes de crearlos
-const ensureDirectoryExists = async (dirPath) => {
+// 🔹 Validar directorios antes de escribir archivos
+const ensureValidPath = async (filePath) => {
+  const dirPath = path.dirname(filePath);
+
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
     
@@ -58,17 +60,6 @@ const ensureDirectoryExists = async (dirPath) => {
       await fs.mkdir(dirPath, { recursive: true });
     }
   } catch (error) {
-    throw new Error(`Failed to create directory: ${dirPath}. Error: ${error.message}`);
-  }
-};
-
-// 🔹 Validación antes de escribir archivos
-const validateFilePath = async (filePath) => {
-  const dirPath = path.dirname(filePath);
-
-  try {
-    await ensureDirectoryExists(dirPath);
-  } catch (error) {
     throw new Error(`Invalid path: Cannot create file at ${filePath}. ${error.message}`);
   }
 };
@@ -78,9 +69,12 @@ const downloadResource = async (resourceUrl, resourcePath) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
 
-    // Validar directorio antes de escribir archivos
-    await validateFilePath(resourcePath);
+    // Evitar rutas absolutas peligrosas (ejemplo: /sys/, /etc/)
+    if (path.isAbsolute(resourcePath)) {
+      throw new Error(`Invalid path: ${resourcePath} is an absolute path.`);
+    }
 
+    await ensureValidPath(resourcePath);
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(resourcePath, response.data);
 
@@ -118,6 +112,11 @@ const downloadPage = async (url, outputDir) => {
         const resourceFileName = path.basename(src);
         const resourcePath = path.join(filesPath, resourceFileName);
 
+        if (!resourcePath.startsWith(outputDir)) {
+          log(`Skipping invalid path: ${resourcePath}`);
+          return;
+        }
+
         tasks.add({
           title: `Downloading resource: ${resourceUrl}`,
           task: () => downloadResource(resourceUrl, resourcePath),
@@ -131,9 +130,9 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Validar directorios antes de escribir archivos
-    await validateFilePath(filePath);
-    await validateFilePath(filesPath);
+    // 🔹 Validar rutas antes de escribir archivos
+    await ensureValidPath(filePath);
+    await ensureValidPath(filesPath);
 
     await tasks.run();
     await fs.writeFile(filePath, $.html());
