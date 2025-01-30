@@ -43,12 +43,17 @@ const handleErrorLogging = async (error) => {
   }
 };
 
+// 🔹 Asegurar que el directorio de cada recurso exista antes de descargarlo
 const downloadResource = async (resourceUrl, resourcePath) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
-    const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
+
+    // Crear el directorio de destino si no existe
     await fs.mkdir(path.dirname(resourcePath), { recursive: true });
+
+    const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(resourcePath, response.data);
+
     log(`Downloaded: ${resourceUrl} to ${resourcePath}`);
   } catch (error) {
     throw new Error(`Failed to download resource: ${resourceUrl}. Error: ${error.message}`);
@@ -91,7 +96,10 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
+    // 🔹 Crear directorios necesarios antes de descargar
     await fs.mkdir(outputDir, { recursive: true });
+    await fs.mkdir(filesPath, { recursive: true });
+
     await tasks.run();
     await fs.writeFile(filePath, $.html());
 
@@ -100,7 +108,7 @@ const downloadPage = async (url, outputDir) => {
   } catch (error) {
     console.error(error.message);
     await handleErrorLogging(error);
-    throw error;  
+    throw error; // Asegurar que las pruebas capturen los errores correctamente
   }
 };
 
