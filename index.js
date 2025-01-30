@@ -9,7 +9,6 @@ import { Listr } from 'listr2';
 const log = debug('page-loader');
 const axiosLog = debug('axios');
 
-// Configurar axios para loggear cada solicitud
 axios.interceptors.request.use((config) => {
   axiosLog(`Starting request to: ${config.url}`);
   return config;
@@ -64,21 +63,29 @@ const ensureValidPath = async (filePath) => {
   }
 };
 
+// 🔹 Normalizar rutas para evitar absolutas no deseadas
+const normalizePath = (resourcePath, outputDir) => {
+  if (path.isAbsolute(resourcePath)) {
+    log(`Skipping absolute path: ${resourcePath}`);
+    throw new Error(`Invalid path: ${resourcePath} is an absolute path.`);
+  }
+
+  return path.join(outputDir, resourcePath.replace(/^\/+/, ''));
+};
+
 // Función para descargar recursos
-const downloadResource = async (resourceUrl, resourcePath) => {
+const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
 
-    // Evitar rutas absolutas peligrosas (ejemplo: /sys/, /etc/)
-    if (path.isAbsolute(resourcePath)) {
-      throw new Error(`Invalid path: ${resourcePath} is an absolute path.`);
-    }
+    // Normalizar el path y evitar rutas absolutas peligrosas
+    const safePath = normalizePath(resourcePath, outputDir);
 
-    await ensureValidPath(resourcePath);
+    await ensureValidPath(safePath);
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
-    await fs.writeFile(resourcePath, response.data);
+    await fs.writeFile(safePath, response.data);
 
-    log(`Downloaded: ${resourceUrl} to ${resourcePath}`);
+    log(`Downloaded: ${resourceUrl} to ${safePath}`);
   } catch (error) {
     if (error.message.includes('Nock: Disallowed net connect')) {
       log(`Skipping resource (blocked by tests): ${resourceUrl}`);
@@ -110,16 +117,16 @@ const downloadPage = async (url, outputDir) => {
       if (src) {
         const resourceUrl = new URL(src, urlObj).href;
         const resourceFileName = path.basename(src);
-        const resourcePath = path.join(filesPath, resourceFileName);
+        const resourcePath = path.join(filesDir, resourceFileName);
 
-        if (!resourcePath.startsWith(outputDir)) {
+        if (!resourcePath.startsWith(filesDir)) {
           log(`Skipping invalid path: ${resourcePath}`);
           return;
         }
 
         tasks.add({
           title: `Downloading resource: ${resourceUrl}`,
-          task: () => downloadResource(resourceUrl, resourcePath),
+          task: () => downloadResource(resourceUrl, resourcePath, outputDir),
         });
 
         $(element).attr(attr, path.join(filesDir, resourceFileName));
