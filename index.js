@@ -45,16 +45,12 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Normalización de rutas para evitar absolutas incorrectas
+// 🔹 Normalización mejorada de rutas para evitar errores con `/sys/`
 const normalizePath = (resourcePath, outputDir) => {
-  const resolvedPath = path.join(outputDir, resourcePath.replace(/^\/+/, ''));
-
-  // Permitir rutas relativas dentro del directorio de salida
-  if (!resolvedPath.startsWith(outputDir)) {
+  if (resourcePath.startsWith('/sys/') || path.isAbsolute(resourcePath)) {
     throw new Error(`Invalid path: ${resourcePath} is not allowed.`);
   }
-
-  return resolvedPath;
+  return path.join(outputDir, resourcePath.replace(/^\/+/, ''));
 };
 
 // 🔹 Validación de rutas antes de escribir archivos
@@ -62,7 +58,7 @@ const ensureValidPath = async (filePath) => {
   const dirPath = path.dirname(filePath);
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
-
+    
     if (stats && stats.isFile()) {
       throw new Error(`Cannot create directory: ${dirPath} is already a file.`);
     }
@@ -79,10 +75,10 @@ const ensureValidPath = async (filePath) => {
 const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
-
+    
     // Normalizar el path para evitar errores
     const safePath = normalizePath(resourcePath, outputDir);
-
+    
     await ensureValidPath(safePath);
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(safePath, response.data);
@@ -121,7 +117,6 @@ const downloadPage = async (url, outputDir) => {
         const resourceFileName = path.basename(src);
         const resourcePath = path.join(filesDir, resourceFileName);
 
-        // Permitir solo rutas dentro del directorio de salida
         if (!resourcePath.startsWith(filesDir)) {
           log(`Skipping invalid path: ${resourcePath}`);
           return;
@@ -140,12 +135,6 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Verificar si `filesPath` es un archivo en lugar de directorio
-    const stats = await fs.stat(filesPath).catch(() => null);
-    if (stats && stats.isFile()) {
-      throw new Error(`Invalid path: ${filesPath} is already a file.`);
-    }
-
     await ensureValidPath(filePath);
     await ensureValidPath(filesPath);
 
@@ -158,9 +147,9 @@ const downloadPage = async (url, outputDir) => {
     console.error(error.message);
     await handleErrorLogging(error);
 
-    // 🔹 Lanzar el error correctamente en entornos de prueba
+    // 🔹 Ahora realmente lanza el error en modo test
     if (process.env.NODE_ENV === 'test') {
-      return Promise.reject(error);
+      throw error;
     } else {
       process.exit(1);
     }
