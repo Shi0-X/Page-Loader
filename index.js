@@ -9,6 +9,7 @@ import { Listr } from 'listr2';
 const log = debug('page-loader');
 const axiosLog = debug('axios');
 
+// Interceptores de axios para logging
 axios.interceptors.request.use((config) => {
   axiosLog(`Starting request to: ${config.url}`);
   return config;
@@ -44,10 +45,18 @@ const handleErrorLogging = async (error) => {
   }
 };
 
-// 🔹 Validar directorios antes de escribir archivos
+// 🔹 Normalización de rutas para evitar absolutas incorrectas
+const normalizePath = (resourcePath, outputDir) => {
+  const normalized = path.join(outputDir, resourcePath.replace(/^\/+/, ''));
+  if (normalized.startsWith('/sys/') || path.isAbsolute(resourcePath)) {
+    throw new Error(`Invalid path: ${resourcePath} is not allowed.`);
+  }
+  return normalized;
+};
+
+// 🔹 Validación de rutas antes de escribir archivos
 const ensureValidPath = async (filePath) => {
   const dirPath = path.dirname(filePath);
-
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
     
@@ -63,24 +72,14 @@ const ensureValidPath = async (filePath) => {
   }
 };
 
-// 🔹 Normalizar rutas para evitar absolutas no deseadas
-const normalizePath = (resourcePath, outputDir) => {
-  if (path.isAbsolute(resourcePath)) {
-    log(`Skipping absolute path: ${resourcePath}`);
-    throw new Error(`Invalid path: ${resourcePath} is an absolute path.`);
-  }
-
-  return path.join(outputDir, resourcePath.replace(/^\/+/, ''));
-};
-
 // Función para descargar recursos
 const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
   try {
     log(`Attempting to download: ${resourceUrl}`);
-
-    // Normalizar el path y evitar rutas absolutas peligrosas
+    
+    // Normalizar el path para evitar errores
     const safePath = normalizePath(resourcePath, outputDir);
-
+    
     await ensureValidPath(safePath);
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(safePath, response.data);
@@ -137,7 +136,12 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Validar rutas antes de escribir archivos
+    // 🔹 Verificar si `filesPath` es un archivo en lugar de directorio
+    const stats = await fs.stat(filesPath).catch(() => null);
+    if (stats && stats.isFile()) {
+      throw new Error(`Invalid path: ${filesPath} is already a file.`);
+    }
+
     await ensureValidPath(filePath);
     await ensureValidPath(filesPath);
 
