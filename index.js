@@ -71,6 +71,19 @@ const ensureValidPath = async (filePath) => {
   }
 };
 
+// 🔹 Nueva validación para evitar colisiones de archivos y directorios
+const ensureSafeFileCreation = async (filePath) => {
+  try {
+    const stats = await fs.stat(filePath).catch(() => null);
+    
+    if (stats && stats.isDirectory()) {
+      throw new Error(`Cannot create file at ${filePath}. Path is an existing directory.`);
+    }
+  } catch (error) {
+    throw new Error(`Invalid path: ${filePath}. ${error.message}`);
+  }
+};
+
 // Función para descargar recursos
 const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
   try {
@@ -80,6 +93,8 @@ const downloadResource = async (resourceUrl, resourcePath, outputDir) => {
     const safePath = normalizePath(resourcePath, outputDir);
     
     await ensureValidPath(safePath);
+    await ensureSafeFileCreation(safePath);
+    
     const response = await axios.get(resourceUrl, { responseType: 'arraybuffer' });
     await fs.writeFile(safePath, response.data);
 
@@ -136,6 +151,7 @@ const downloadPage = async (url, outputDir) => {
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
     await ensureValidPath(filePath);
+    await ensureSafeFileCreation(filePath);
     await ensureValidPath(filesPath);
 
     await tasks.run();
