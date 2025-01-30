@@ -9,30 +9,33 @@ import { urlToFilename, urlToDirname, getExtension } from './utils.js';
 
 const log = debug('page-loader');
 
-const fetchWithRetry = async (url, retries = 2, delay = 2000) => {
+// 🔹 Función para manejar reintentos en solicitudes HTTP con descarga de archivos binarios correcta
+const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   for (let i = 0; i < retries; i++) {
     try {
       return await axios.get(url, {
-        timeout: 3000, // ⏳ Reduce timeout a 3s para no exceder el límite de 5s en la prueba
-        responseType: 'arraybuffer',
+        timeout: 5000,
+        responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Accept': '*/*',
         },
       });
     } catch (error) {
-      // 🚨 Si el error es crítico, fallamos inmediatamente
-      if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT'].includes(error.code)) {
-        throw new Error(`❌ Connection failed immediately: ${url} (${error.code})`);
+      if (error.code === 'ENOTFOUND') {
+        throw new Error(`❌ URL no encontrada: ${url} (${error.code})`);
       }
-      // ⏳ Si no es un error crítico, intentamos nuevamente
+      if (error.response) {
+        const status = error.response.status;
+        if (status === 404) throw new Error(`❌ Error 404: Página no encontrada (${url})`);
+        if (status === 500) throw new Error(`❌ Error 500: Error interno del servidor (${url})`);
+      }
       if (i === retries - 1) throw error;
       console.warn(`⚠️ Retry ${i + 1}/${retries}: ${url}`);
       await new Promise((res) => setTimeout(res, delay));
     }
   }
 };
-
 
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   $(tagName).each((_, element) => {
@@ -72,8 +75,19 @@ const downloadPage = async (pageUrl, outputDirName) => {
     const assetsDirname = urlToDirname(slug);
     const fullOutputAssetsDirname = path.join(fullOutputDirname, assetsDirname);
 
-    await fs.mkdir(fullOutputDirname, { recursive: true });
-    await fs.mkdir(fullOutputAssetsDirname, { recursive: true });
+    // 🔹 Manejo de errores de directorios
+    try {
+      await fs.mkdir(fullOutputDirname, { recursive: true });
+      await fs.mkdir(fullOutputAssetsDirname, { recursive: true });
+    } catch (error) {
+      if (error.code === 'EEXIST') {
+        throw new Error(`❌ El directorio ya existe: ${fullOutputDirname}`);
+      }
+      if (error.code === 'ENOENT') {
+        throw new Error(`❌ No se pudo crear el directorio: ${fullOutputDirname}`);
+      }
+      throw error;
+    }
 
     const { data: html } = await fetchWithRetry(pageUrl);
     const $ = cheerio.load(html, { decodeEntities: false });
@@ -89,7 +103,6 @@ const downloadPage = async (pageUrl, outputDirName) => {
           const resourcePath = path.join(fullOutputAssetsDirname, filename);
           const { data } = await fetchWithRetry(url.href);
 
-          // 🔹 Verifica que el archivo no esté vacío antes de guardarlo
           if (!data || data.length === 0) {
             throw new Error(`❌ Empty file received: ${url.href}`);
           }
@@ -97,7 +110,7 @@ const downloadPage = async (pageUrl, outputDirName) => {
           await fs.writeFile(resourcePath, data);
         },
       })),
-      { concurrent: 5 } // 🔹 Máximo 5 descargas simultáneas para evitar sobrecarga
+      { concurrent: 5 }
     );
 
     await tasks.run();
