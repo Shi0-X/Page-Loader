@@ -49,10 +49,11 @@ const handleErrorLogging = async (error) => {
 const ensureDirectoryExists = async (dirPath) => {
   try {
     const stats = await fs.stat(dirPath).catch(() => null);
-    if (stats && stats.isFile()) {
-      throw new Error(`Cannot create directory: ${dirPath} is already a file`);
-    }
-    if (!stats) {
+    if (stats) {
+      if (stats.isFile()) {
+        throw new Error(`Cannot create directory: ${dirPath} is already a file`);
+      }
+    } else {
       await fs.mkdir(dirPath, { recursive: true });
     }
   } catch (error) {
@@ -94,8 +95,8 @@ const downloadPage = async (url, outputDir) => {
     const filePath = path.join(outputDir, fileName);
 
     log(`Saving file to: ${filePath}`);
-    const { data } = await axios.get(url);
 
+    const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const tasks = new Listr([], { concurrent: true });
 
@@ -119,7 +120,7 @@ const downloadPage = async (url, outputDir) => {
     $('link[rel="stylesheet"]').each((_, element) => processResource(element, 'href'));
     $('script[src]').each((_, element) => processResource(element, 'src'));
 
-    // 🔹 Crear directorios seguros antes de escribir archivos
+    // 🔹 Verificar existencia de directorios antes de escribir archivos
     await ensureDirectoryExists(outputDir);
     await ensureDirectoryExists(filesPath);
 
