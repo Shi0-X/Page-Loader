@@ -9,13 +9,12 @@ import { urlToFilename, urlToDirname, getExtension } from './utils.js';
 
 const log = debug('page-loader');
 
-// 🔹 Función para manejar reintentos en solicitudes HTTP con descarga de archivos binarios correcta
 const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   for (let i = 0; i < retries; i++) {
     try {
       return await axios.get(url, {
         timeout: 5000,
-        responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
+        responseType: 'arraybuffer',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Accept': '*/*',
@@ -37,7 +36,6 @@ const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   }
 };
 
-// 🔹 Procesar recursos incrustados (imágenes, estilos, scripts)
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   $(tagName).each((_, element) => {
     const $element = $(element);
@@ -62,7 +60,6 @@ const processResources = ($, baseUrl, baseDirname) => {
   return { html: $.html(), assets };
 };
 
-// 🔹 Función principal para descargar la página y sus recursos
 const downloadPage = async (pageUrl, outputDirName) => {
   try {
     log('url', pageUrl);
@@ -77,19 +74,8 @@ const downloadPage = async (pageUrl, outputDirName) => {
     const assetsDirname = urlToDirname(slug);
     const fullOutputAssetsDirname = path.join(fullOutputDirname, assetsDirname);
 
-    // 🔹 Manejo de errores de directorios
-    try {
-      await fs.mkdir(fullOutputDirname, { recursive: true });
-      await fs.mkdir(fullOutputAssetsDirname, { recursive: true });
-    } catch (error) {
-      if (error.code === 'EEXIST') {
-        throw new Error(`❌ El directorio ya existe: ${fullOutputDirname}`);
-      }
-      if (error.code === 'ENOENT') {
-        throw new Error(`❌ No se pudo crear el directorio: ${fullOutputDirname}`);
-      }
-      throw error;
-    }
+    await fs.mkdir(fullOutputDirname, { recursive: true });
+    await fs.mkdir(fullOutputAssetsDirname, { recursive: true });
 
     const { data: html } = await fetchWithRetry(pageUrl);
     const $ = cheerio.load(html, { decodeEntities: false });
@@ -98,18 +84,15 @@ const downloadPage = async (pageUrl, outputDirName) => {
     await fs.writeFile(fullOutputFilename, updatedHtml);
     log(`✅ HTML saved: ${fullOutputFilename}`);
 
-    // 🔹 Descarga concurrente de recursos
     const tasks = new Listr(
       assets.map(({ url, filename }) => ({
         title: `Downloading resource: ${url.href}`,
         task: async () => {
           const resourcePath = path.join(fullOutputAssetsDirname, filename);
           const { data } = await fetchWithRetry(url.href);
-
           if (!data || data.length === 0) {
             throw new Error(`❌ Empty file received: ${url.href}`);
           }
-
           await fs.writeFile(resourcePath, data);
         },
       })),
