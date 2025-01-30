@@ -37,6 +37,7 @@ const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   }
 };
 
+// 🔹 Procesar recursos incrustados (imágenes, estilos, scripts)
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   $(tagName).each((_, element) => {
     const $element = $(element);
@@ -61,6 +62,7 @@ const processResources = ($, baseUrl, baseDirname) => {
   return { html: $.html(), assets };
 };
 
+// 🔹 Función principal para descargar la página y sus recursos
 const downloadPage = async (pageUrl, outputDirName) => {
   try {
     log('url', pageUrl);
@@ -96,6 +98,7 @@ const downloadPage = async (pageUrl, outputDirName) => {
     await fs.writeFile(fullOutputFilename, updatedHtml);
     log(`✅ HTML saved: ${fullOutputFilename}`);
 
+    // 🔹 Descarga concurrente de recursos
     const tasks = new Listr(
       assets.map(({ url, filename }) => ({
         title: `Downloading resource: ${url.href}`,
