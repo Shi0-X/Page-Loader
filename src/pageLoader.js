@@ -9,20 +9,29 @@ import { urlToFilename, urlToDirname, getExtension } from './utils.js';
 
 const log = debug('page-loader');
 
+// 🔹 Función para evitar que `outputDirName` apunte a directorios restringidos
+const sanitizeOutputDir = (dir) => {
+  const restrictedPaths = ['/sys', '/etc', '/bin', '/usr', '/lib'];
+  if (restrictedPaths.includes(dir)) {
+    throw new Error(`❌ No se puede usar el directorio restringido: ${dir}`);
+  }
+  return dir;
+};
+
 // 🔹 Función para manejar reintentos en solicitudes HTTP con descarga de archivos binarios correcta
 const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await axios.get(url, {
         timeout: 5000,
-        responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
+        responseType: 'arraybuffer', 
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Accept': '*/*',
         },
       });
 
-      return response; // ✅ Si la solicitud es exitosa, devolverla.
+      return response; 
     } catch (error) {
       if (error.code === 'ENOTFOUND') {
         throw new Error(`❌ URL no encontrada: ${url} (${error.code})`);
@@ -42,12 +51,6 @@ const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
       await new Promise((res) => setTimeout(res, delay));
     }
   }
-};
-
-// 🔹 Evita que `outputDirName` apunte a directorios restringidos
-const sanitizeOutputDir = (dir) => {
-  const restrictedPaths = ['/sys', '/etc', '/bin', '/usr', '/lib'];
-  return restrictedPaths.includes(dir) ? './downloads' : dir;
 };
 
 // 🔹 Verifica si un archivo ya existe
@@ -70,14 +73,12 @@ const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => 
 
     const url = new URL(attrValue, baseUrl);
 
-    // Solo procesar recursos que sean del mismo dominio
     if (url.origin !== baseUrl) return;
 
     const slug = urlToFilename(`${url.hostname}${url.pathname}`);
     const filepath = path.join(baseDirname, slug);
     assets.push({ url, filename: slug });
 
-    // Actualizar el atributo con la nueva ruta del archivo
     $element.attr(attrName, filepath);
   });
 };
