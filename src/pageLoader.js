@@ -9,20 +9,20 @@ import { urlToFilename, urlToDirname, getExtension, sanitizeOutputDir } from './
 
 const log = debug('page-loader');
 
-// 🔹 Función para manejar reintentos en solicitudes HTTP con descarga de archivos binarios correcta
+// 🔹 Función para manejar reintentos en solicitudes HTTP
 const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await axios.get(url, {
         timeout: 5000,
-        responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
+        responseType: 'arraybuffer', // 🔹 Asegura descargas de archivos binarios sin corrupción
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Accept': '*/*',
         },
       });
 
-      return response; // ✅ Si la solicitud es exitosa, devolverla.
+      return response; // ✅ Devuelve la respuesta si la solicitud es exitosa
     } catch (error) {
       if (error.code === 'ENOTFOUND') {
         throw new Error(`❌ URL no encontrada: ${url} (${error.code})`);
@@ -90,7 +90,6 @@ const processResources = ($, baseUrl, baseDirname) => {
 // 🔹 Función principal para descargar una página
 const downloadPage = async (pageUrl, outputDirName) => {
   try {
-    // 🔹 Validar directorio de salida
     outputDirName = sanitizeOutputDir(outputDirName);
 
     log('url', pageUrl);
@@ -100,14 +99,11 @@ const downloadPage = async (pageUrl, outputDirName) => {
     const slug = `${url.hostname}${url.pathname}`;
     const filename = urlToFilename(slug);
     const fullOutputDirname = path.resolve(process.cwd(), outputDirName);
-
     const extension = getExtension(filename) === '.html' ? '' : '.html';
     const fullOutputFilename = path.join(fullOutputDirname, `${filename}${extension}`);
-
     const assetsDirname = urlToDirname(slug);
     const fullOutputAssetsDirname = path.join(fullOutputDirname, assetsDirname);
 
-    // 🔹 Manejo de errores de directorios
     await fs.mkdir(fullOutputDirname, { recursive: true });
 
     if (await fileExists(fullOutputFilename)) {
@@ -118,8 +114,8 @@ const downloadPage = async (pageUrl, outputDirName) => {
 
     const { data: html } = await fetchWithRetry(pageUrl);
     const $ = cheerio.load(html, { decodeEntities: false });
-
     const { html: updatedHtml, assets } = processResources($, pageUrl, fullOutputAssetsDirname);
+
     await fs.writeFile(fullOutputFilename, updatedHtml);
     log(`✅ HTML saved: ${fullOutputFilename}`);
 
@@ -140,8 +136,7 @@ const downloadPage = async (pageUrl, outputDirName) => {
     return fullOutputFilename;
   } catch (error) {
     console.error(error.message);
-    if (process.env.NODE_ENV === 'test') throw error;
-    process.exit(1);
+    throw error;  // ✅ Lanza el error en lugar de solo loguearlo
   }
 };
 

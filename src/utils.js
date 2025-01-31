@@ -6,7 +6,7 @@ const processName = (name, replacer = '-') => name
   .match(/\w+/gi)         // Extrae partes alfanuméricas del string
   .join(replacer);        // Une los valores con el `replacer`
 
-// 🔹 Convierte una URL en un nombre de archivo seguro (ej. "example-com-path-to-page.html")
+// 🔹 Convierte una URL en un nombre de archivo seguro
 export const urlToFilename = (link, defaultFormat = '.html') => {
   const { dir, name, ext } = path.parse(link);
   const slug = processName(path.join(dir, name));
@@ -15,7 +15,7 @@ export const urlToFilename = (link, defaultFormat = '.html') => {
   return `${slug}${format}`;
 };
 
-// 🔹 Convierte una URL en un nombre de directorio seguro (ej. "example-com-path-to-page_files")
+// 🔹 Convierte una URL en un nombre de directorio seguro
 export const urlToDirname = (link, postfix = '_files') => {
   const { dir, name, ext } = path.parse(link);
   const slug = processName(path.join(dir, name, ext));
