@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import nock from 'nock';
 import fs from 'fs';
-import pageLoader from '../index.js';
+import pageLoader from '../src/pageLoader.js';
 
 describe('Error Handling', () => {
   beforeEach(() => {
