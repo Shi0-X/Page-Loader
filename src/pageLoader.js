@@ -13,7 +13,7 @@ const log = debug('page-loader');
 const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
   for (let i = 0; i < retries; i++) {
     try {
-      return await axios.get(url, {
+      const response = await axios.get(url, {
         timeout: 5000,
         responseType: 'arraybuffer', // 🔹 Asegura que los archivos binarios no se corrompan
         headers: {
@@ -21,24 +21,31 @@ const fetchWithRetry = async (url, retries = 2, delay = 3000) => {
           'Accept': '*/*',
         },
       });
+
+      return response; // ✅ Si la solicitud es exitosa, devolverla.
     } catch (error) {
       if (error.code === 'ENOTFOUND') {
         throw new Error(`❌ URL no encontrada: ${url} (${error.code})`);
       }
+
       if (error.response) {
         const status = error.response.status;
         if (status === 404) throw new Error(`❌ Error 404: Página no encontrada (${url})`);
         if (status === 500) throw new Error(`❌ Error 500: Error interno del servidor (${url})`);
       }
-      if (i === retries - 1) throw new Error(`❌ Falló la descarga tras ${retries} intentos: ${url}`);
+
+      if (i === retries - 1) {
+        throw new Error(`❌ Falló la descarga tras ${retries} intentos: ${url}`);
+      }
+
       console.warn(`⚠️ Retry ${i + 1}/${retries}: ${url}`);
       await new Promise((res) => setTimeout(res, delay));
     }
   }
 };
 
-// 🔹 Verifica si un archivo o directorio ya existe
-const pathExists = async (filePath) => {
+// 🔹 Verifica si un archivo ya existe
+const fileExists = async (filePath) => {
   try {
     await fs.access(filePath);
     return true;
@@ -83,41 +90,39 @@ const processResources = ($, baseUrl, baseDirname) => {
 // 🔹 Función principal para descargar una página
 const downloadPage = async (pageUrl, outputDirName) => {
   try {
+    // 🔹 Validar directorio de salida
+    outputDirName = sanitizeOutputDir(outputDirName);
+
     log('url', pageUrl);
     log('output', outputDirName);
-
-    // 🚨 Validar y sanitizar el directorio antes de continuar
-    const safeOutputDir = sanitizeOutputDir(outputDirName);
 
     const url = new URL(pageUrl);
     const slug = `${url.hostname}${url.pathname}`;
     const filename = urlToFilename(slug);
-    const fullOutputDirname = path.resolve(process.cwd(), safeOutputDir);
+    const fullOutputDirname = path.resolve(process.cwd(), outputDirName);
+
     const extension = getExtension(filename) === '.html' ? '' : '.html';
     const fullOutputFilename = path.join(fullOutputDirname, `${filename}${extension}`);
+
     const assetsDirname = urlToDirname(slug);
     const fullOutputAssetsDirname = path.join(fullOutputDirname, assetsDirname);
 
-    // 🔹 Verificar si el directorio existe y crearlo si es necesario
+    // 🔹 Manejo de errores de directorios
     await fs.mkdir(fullOutputDirname, { recursive: true });
 
-    // 🚨 Evita conflictos de nombre con archivos ya existentes
-    if (await pathExists(fullOutputFilename)) {
+    if (await fileExists(fullOutputFilename)) {
       throw new Error(`❌ Conflicto: ${fullOutputFilename} ya existe como archivo.`);
     }
 
     await fs.mkdir(fullOutputAssetsDirname, { recursive: true });
 
-    // 🔹 Descargar la página HTML
     const { data: html } = await fetchWithRetry(pageUrl);
     const $ = cheerio.load(html, { decodeEntities: false });
 
-    // 🔹 Procesar y guardar la versión actualizada del HTML
     const { html: updatedHtml, assets } = processResources($, pageUrl, fullOutputAssetsDirname);
     await fs.writeFile(fullOutputFilename, updatedHtml);
     log(`✅ HTML saved: ${fullOutputFilename}`);
 
-    // 🔹 Descargar los recursos en paralelo
     const tasks = new Listr(
       assets.map(({ url, filename }) => ({
         title: `Downloading resource: ${url.href}`,

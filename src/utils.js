@@ -11,6 +11,7 @@ export const urlToFilename = (link, defaultFormat = '.html') => {
   const { dir, name, ext } = path.parse(link);
   const slug = processName(path.join(dir, name));
   const format = ext || defaultFormat;
+
   return `${slug}${format}`;
 };
 
@@ -18,13 +19,14 @@ export const urlToFilename = (link, defaultFormat = '.html') => {
 export const urlToDirname = (link, postfix = '_files') => {
   const { dir, name, ext } = path.parse(link);
   const slug = processName(path.join(dir, name, ext));
+
   return `${slug}${postfix}`;
 };
 
 // 🔹 Obtiene la extensión de un archivo
 export const getExtension = (fileName) => path.extname(fileName);
 
-// 🔹 Verifica si el directorio de salida es válido y lanza error si es restringido
+// 🔹 Evita que `outputDirName` apunte a directorios restringidos
 export const sanitizeOutputDir = (dir) => {
   const restrictedPaths = ['/sys', '/etc', '/bin', '/usr', '/lib'];
   if (restrictedPaths.includes(dir)) {
