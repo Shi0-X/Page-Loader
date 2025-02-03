@@ -71,11 +71,11 @@ describe('PageLoader with Fixtures', () => {
     await downloadPage('https://google.com', outputDir);
 
     // Leer los archivos generados
-    let outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
-    let expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
+    const outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
+    const expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
 
     // 🔥 SOLUCIÓN: Normalizar nombres de archivos eliminando prefijos extra
-    outputHtml = outputHtml
+    const normalizedOutputHtml = outputHtml
       .replace(/google-com_files\/google-com-/g, 'google.com_files/')
       .replace(/google-com_files\\/g, 'google.com_files/');
 
@@ -88,7 +88,7 @@ describe('PageLoader with Fixtures', () => {
         .replace(/\/>/g, '>') // Remueve las barras de cierre innecesarias en HTML5
         .trim();
 
-    expect(normalizeHtml(outputHtml)).toEqual(normalizeHtml(expectedHtml));
+    expect(normalizeHtml(normalizedOutputHtml)).toEqual(normalizeHtml(expectedHtml));
 
     // Verificar la existencia de los archivos descargados
     const outputFiles = await fs.readdir(outputFilesDir);
