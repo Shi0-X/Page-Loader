@@ -1,16 +1,16 @@
-import fetch from 'node-fetch'; // Asegúrate de que esté instalado
+import fetch from 'node-fetch';
 import nock from 'nock';
 
 nock.recorder.rec({
   output_objects: true,
-  logging: console.log, // Registrar solicitudes
+  logging: console.log
 });
 
 const scope = nock('https://example.com', {
   reqheaders: {
     accept: '*/*',
-    'user-agent': /fetch|axios/i,
-  },
+    'user-agent': /fetch|axios/i
+  }
 })
   .get('/')
   .reply(200, '<html><head><title>Test</title></head><body>Test page</body></html>');
@@ -18,8 +18,8 @@ const scope = nock('https://example.com', {
 fetch('https://example.com')
   .then((response) => response.text())
   .then((body) => {
-    console.log('Response body:', body); // Mostrar contenido de la respuesta
-    console.log('Is Nock done?', scope.isDone()); // Confirmar si Nock interceptó
+    console.log('Response body:', body);
+    console.log('Is Nock done?', scope.isDone());
     const recordedRequests = nock.recorder.play();
     console.log('Recorded requests:', JSON.stringify(recordedRequests, null, 2));
   })
