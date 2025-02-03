@@ -80,33 +80,29 @@ describe('PageLoader with Fixtures', () => {
       .replace(/google-com_files\\/g, 'google.com_files/');
 
     // 🔥 SOLUCIÓN: Normalizar etiquetas autocontenidas (<img />, <br />, <meta />)
-    const normalizeHtml = (html) =>
-      html
-        .replace(/\s+/g, ' ') // Eliminar múltiples espacios
-        .replace(/>\s+</g, '><') // Eliminar espacios entre etiquetas
-        .replace(/(\s)\/>/g, '>') // Reemplaza "<img />" por "<img>"
-        .replace(/\/>/g, '>') // Remueve las barras de cierre innecesarias en HTML5
-        .trim();
+    const normalizeHtml = (html) => html
+      .replace(/\s+/g, ' ') // Eliminar múltiples espacios
+      .replace(/>\s+</g, '><') // Eliminar espacios entre etiquetas
+      .replace(/(\s)\/>/g, '>') // Reemplaza "<img />" por "<img>"
+      .replace(/\/>/g, '>') // Remueve las barras de cierre innecesarias en HTML5
+      .trim();
 
     expect(normalizeHtml(normalizedOutputHtml)).toEqual(normalizeHtml(expectedHtml));
 
     // Verificar la existencia de los archivos descargados
     const outputFiles = await fs.readdir(outputFilesDir);
     const expectedFiles = await fs.readdir(expectedFilesDir);
-
     expect(outputFiles.map((f) => f.replace('google-com-', '')).sort()).toEqual(expectedFiles.sort());
 
     // Verificar el contenido de cada archivo
-    await Promise.all(
-      expectedFiles.map(async (file) => {
-        const outputFilePath = path.join(outputFilesDir, `google-com-${file}`);
-        const expectedFilePath = path.join(expectedFilesDir, file);
+    await Promise.all(expectedFiles.map(async (file) => {
+      const outputFilePath = path.join(outputFilesDir, `google-com-${file}`);
+      const expectedFilePath = path.join(expectedFilesDir, file);
 
-        const outputContent = await fs.readFile(outputFilePath, 'utf-8');
-        const expectedContent = await fs.readFile(expectedFilePath, 'utf-8');
+      const outputContent = await fs.readFile(outputFilePath, 'utf-8');
+      const expectedContent = await fs.readFile(expectedFilePath, 'utf-8');
 
-        expect(outputContent.trim()).toBe(expectedContent.trim());
-      }),
-    );
+      expect(outputContent.trim()).toBe(expectedContent.trim());
+    }));
   });
 });
