@@ -13,7 +13,7 @@ const scope = nock('https://example.com', {
   },
 })
   .get('/')
-  .reply(200, '<html><head><title>Test</title></head><body>Test page</body></html>',);
+  .reply(200, '<html><head><title>Test</title></head><body>Test page</body></html>');
 
 fetch('https://example.com')
   .then((response) => response.text())
