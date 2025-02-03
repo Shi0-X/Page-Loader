@@ -48,15 +48,18 @@ const downloadAsset = (dirname, { url, filename }) => axios.get(url.toString(), 
 
 // 🔹 Función principal para descargar una página
 const downloadPage = (pageUrl, outputDirName = '') => {
-  outputDirName = sanitizeOutputDir(outputDirName);
+  const sanitizedDir = sanitizeOutputDir(outputDirName);
+  if (!sanitizedDir) {
+    return Promise.reject(new Error(`❌ No se puede usar el directorio restringido: ${outputDirName}`));
+  }
 
   log('url', pageUrl);
-  log('output', outputDirName);
+  log('output', sanitizedDir);
 
   const url = new URL(pageUrl);
   const slug = `${url.hostname}${url.pathname}`;
   const filename = urlToFilename(slug);
-  const fullOutputDirname = path.resolve(process.cwd(), outputDirName);
+  const fullOutputDirname = path.resolve(process.cwd(), sanitizedDir);
   const extension = getExtension(filename) === '.html' ? '' : '.html';
   const fullOutputFilename = path.join(fullOutputDirname, `${filename}${extension}`);
   const assetsDirname = urlToDirname(slug);
@@ -67,6 +70,7 @@ const downloadPage = (pageUrl, outputDirName = '') => {
     .get(pageUrl)
     .then((response) => {
       const html = response.data;
+
       data = processResources(url.origin, assetsDirname, html);
       log('create (if not exists) directory for assets', fullOutputAssetsDirname);
       return fs.access(fullOutputAssetsDirname).catch(() => fs.mkdir(fullOutputAssetsDirname));
