@@ -3,17 +3,17 @@ import nock from 'nock';
 
 nock.recorder.rec({
   output_objects: true,
-  logging: console.log
+  logging: console.log,
 });
 
 const scope = nock('https://example.com', {
   reqheaders: {
     accept: '*/*',
-    'user-agent': /fetch|axios/i
-  }
+    'user-agent': /fetch|axios/i,
+  },
 })
   .get('/')
-  .reply(200, '<html><head><title>Test</title></head><body>Test page</body></html>');
+  .reply(200, '<html><head><title>Test</title></head><body>Test page</body></html>',);
 
 fetch('https://example.com')
   .then((response) => response.text())
