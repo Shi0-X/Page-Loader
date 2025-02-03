@@ -12,7 +12,6 @@ import {
 
 const log = debug('page-loader');
 
-// 🔹 Procesa y reemplaza las URLs de recursos dentro del HTML
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   const $elements = $(tagName).toArray();
   const elementsWithUrls = $elements
@@ -29,7 +28,6 @@ const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => 
   });
 };
 
-// 🔹 Obtiene y procesa todos los recursos del HTML
 const processResources = (baseUrl, baseDirname, html) => {
   const $ = cheerio.load(html, { decodeEntities: false });
   const assets = [];
@@ -46,7 +44,7 @@ const downloadAsset = (dirname, { url, filename }) => axios.get(url.toString(), 
   return fs.writeFile(fullPath, response.data);
 });
 
-// 🔹 Función principal para descargar una página
+// 🔹 Modificación: Rechazar promesa si el directorio es inválido
 const downloadPage = (pageUrl, outputDirName = '') => {
   const sanitizedDir = sanitizeOutputDir(outputDirName);
   if (!sanitizedDir) {
@@ -66,7 +64,7 @@ const downloadPage = (pageUrl, outputDirName = '') => {
   const fullOutputAssetsDirname = path.join(fullOutputDirname, assetsDirname);
 
   let data;
-  const promise = axios
+  return axios
     .get(pageUrl)
     .then((response) => {
       const html = response.data;
@@ -95,9 +93,6 @@ const downloadPage = (pageUrl, outputDirName = '') => {
       log(`🎉 File successfully saved at: ${fullOutputFilename}`);
       return { filepath: fullOutputFilename };
     });
-
-  log('WHAT I RETURN AS PROMISE', promise);
-  return promise;
 };
 
 export default downloadPage;

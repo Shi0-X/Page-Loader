@@ -29,8 +29,5 @@ export const getExtension = (fileName) => path.extname(fileName);
 // 🔹 Evita que `outputDirName` apunte a directorios restringidos
 export const sanitizeOutputDir = (dir) => {
   const restrictedPaths = ['/sys', '/etc', '/bin', '/usr', '/lib'];
-  if (restrictedPaths.includes(dir)) {
-    throw new Error(`❌ No se puede usar el directorio restringido: ${dir}`);
-  }
-  return dir;
+  return restrictedPaths.includes(dir) ? null : dir; // Retorna null en vez de lanzar error
 };
