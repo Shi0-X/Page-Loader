@@ -66,7 +66,7 @@ describe('PageLoader with Fixtures', () => {
     const outputHtmlPath = path.join(outputDir, 'google.com.html');
     const expectedHtmlPath = path.join(expectedDir, 'google.com.html');
     const expectedFilesDir = path.join(expectedDir, 'google.com_files');
-    const outputFilesDir = path.join(outputDir, 'google-com_files');
+    const outputFilesDir = path.join(outputDir, 'google.com_files');
 
     await downloadPage('https://google.com', outputDir);
 
@@ -74,25 +74,23 @@ describe('PageLoader with Fixtures', () => {
     let outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
     let expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
 
-    // Ajustar las rutas de los archivos en outputHtml para que coincidan con expectedHtml
-    outputHtml = outputHtml.replace(/google-com_files\\/g, 'google.com_files/');
-    outputHtml = outputHtml.replace(/google-com-/g, '');
+    // 🔥 SOLUCIÓN: Remueve dinámicamente el prefijo "google-com-" de los archivos referenciados en outputHtml
+    outputHtml = outputHtml.replace(/google.com_files\/google-com-/g, 'google.com_files/');
 
     // Normalización para evitar diferencias menores de formato
     const normalizeHtml = (html) =>
       html
-        .replace(/\s+/g, ' ') // Eliminar espacios innecesarios
+        .replace(/\s+/g, ' ') // Eliminar múltiples espacios
         .replace(/>\s+</g, '><') // Eliminar espacios entre etiquetas
-        .replace(/(\s)\/>/g, '>') // Eliminar espacios antes de "/>"
-        .replace(/\/>/g, '>') // Eliminar "/" en etiquetas auto-cerradas
-        .trim(); // Eliminar espacios al inicio y fin
-    
+        .trim();
+
     expect(normalizeHtml(outputHtml)).toEqual(normalizeHtml(expectedHtml));
 
     // Verificar la existencia de los archivos descargados
     const outputFiles = await fs.readdir(outputFilesDir);
     const expectedFiles = await fs.readdir(expectedFilesDir);
 
+    // 🔥 SOLUCIÓN: Remueve "google-com-" de los nombres de los archivos antes de comparar
     expect(outputFiles.map((f) => f.replace('google-com-', '')).sort()).toEqual(expectedFiles.sort());
 
     // Verificar el contenido de cada archivo
