@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import downloadPage from '../src/pageLoader.js'; // Importa como default
 import { program } from 'commander';
 import path from 'path';
@@ -10,9 +11,15 @@ program
   .arguments('<url>')
   .action((url, options) => {
     const outputDir = path.resolve(options.output);
+
     downloadPage(url, outputDir)
-      .then((filePath) => console.log(`Page was successfully downloaded into '${filePath}'`))
-      .catch((err) => console.error(`Error: ${err.message}`));
+      .then(({ filepath }) => {
+        console.log(`✅ Página descargada exitosamente en: '${filepath}'`);
+      })
+      .catch((error) => {
+        console.error(`❌ Error: ${error.message}`);
+        process.exit(1); // ✅ Salir con código de error si hay fallo
+      });
   });
 
 program.on('--help', () => {
