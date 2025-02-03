@@ -12,6 +12,7 @@ import {
 
 const log = debug('page-loader');
 
+// 🔹 Procesa y reemplaza las URLs de recursos dentro del HTML
 const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => {
   const $elements = $(tagName).toArray();
   const elementsWithUrls = $elements
@@ -28,6 +29,7 @@ const processResource = ($, tagName, attrName, baseUrl, baseDirname, assets) => 
   });
 };
 
+// 🔹 Obtiene y procesa todos los recursos del HTML
 const processResources = (baseUrl, baseDirname, html) => {
   const $ = cheerio.load(html, { decodeEntities: false });
   const assets = [];
@@ -44,11 +46,12 @@ const downloadAsset = (dirname, { url, filename }) => axios.get(url.toString(), 
   return fs.writeFile(fullPath, response.data);
 });
 
-// 🔹 Modificación: Rechazar promesa si el directorio es inválido
+// 🔹 Función principal para descargar una página
 const downloadPage = (pageUrl, outputDirName = '') => {
   const sanitizedDir = sanitizeOutputDir(outputDirName);
+
   if (!sanitizedDir) {
-    return Promise.reject(new Error(`❌ No se puede usar el directorio restringido: ${outputDirName}`));
+    return Promise.reject(new Error(`❌ No se puede usar el directorio restringido: ${outputDirName || process.cwd()}`));
   }
 
   log('url', pageUrl);
@@ -57,7 +60,7 @@ const downloadPage = (pageUrl, outputDirName = '') => {
   const url = new URL(pageUrl);
   const slug = `${url.hostname}${url.pathname}`;
   const filename = urlToFilename(slug);
-  const fullOutputDirname = path.resolve(process.cwd(), sanitizedDir);
+  const fullOutputDirname = path.resolve(sanitizedDir);
   const extension = getExtension(filename) === '.html' ? '' : '.html';
   const fullOutputFilename = path.join(fullOutputDirname, `${filename}${extension}`);
   const assetsDirname = urlToDirname(slug);

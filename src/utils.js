@@ -29,5 +29,9 @@ export const getExtension = (fileName) => path.extname(fileName);
 // 🔹 Evita que `outputDirName` apunte a directorios restringidos
 export const sanitizeOutputDir = (dir) => {
   const restrictedPaths = ['/sys', '/etc', '/bin', '/usr', '/lib'];
-  return restrictedPaths.includes(dir) ? null : dir; // Retorna null en vez de lanzar error
+
+  // Si `dir` es vacío o `null`, usar `process.cwd()`
+  const finalDir = dir || process.cwd();
+
+  return restrictedPaths.includes(finalDir) ? null : finalDir;
 };
