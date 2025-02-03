@@ -38,7 +38,7 @@ describe('Error Handling', () => {
   });
 
   test('should handle network errors', async () => {
-    nock.cleanAll(); // Clear existing mocks
+    nock.cleanAll();
 
     nock('https://example.com')
       .get('/nonexistent')
