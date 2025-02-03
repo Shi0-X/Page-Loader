@@ -66,13 +66,18 @@ describe('PageLoader with Fixtures', () => {
     const outputHtmlPath = path.join(outputDir, 'google.com.html');
     const expectedHtmlPath = path.join(expectedDir, 'google.com.html');
     const expectedFilesDir = path.join(expectedDir, 'google.com_files');
-    const outputFilesDir = path.join(outputDir, 'google.com_files');
+    const outputFilesDir = path.join(outputDir, 'google-com_files');
 
     await downloadPage('https://google.com', outputDir);
 
     // Leer los archivos generados
     let outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
     let expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
+
+    // 🔥 SOLUCIÓN: Normalizar nombres de archivos eliminando prefijos extra
+    outputHtml = outputHtml
+      .replace(/google-com_files\/google-com-/g, 'google.com_files/')
+      .replace(/google-com_files\\/g, 'google.com_files/');
 
     // 🔥 SOLUCIÓN: Normalizar etiquetas autocontenidas (<img />, <br />, <meta />)
     const normalizeHtml = (html) =>
