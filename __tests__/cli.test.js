@@ -74,14 +74,13 @@ describe('PageLoader with Fixtures', () => {
     let outputHtml = await fs.readFile(outputHtmlPath, 'utf-8');
     let expectedHtml = await fs.readFile(expectedHtmlPath, 'utf-8');
 
-    // 🔥 SOLUCIÓN: Remueve dinámicamente el prefijo "google-com-" de los archivos referenciados en outputHtml
-    outputHtml = outputHtml.replace(/google.com_files\/google-com-/g, 'google.com_files/');
-
-    // Normalización para evitar diferencias menores de formato
+    // 🔥 SOLUCIÓN: Normalizar etiquetas autocontenidas (<img />, <br />, <meta />)
     const normalizeHtml = (html) =>
       html
         .replace(/\s+/g, ' ') // Eliminar múltiples espacios
         .replace(/>\s+</g, '><') // Eliminar espacios entre etiquetas
+        .replace(/(\s)\/>/g, '>') // Reemplaza "<img />" por "<img>"
+        .replace(/\/>/g, '>') // Remueve las barras de cierre innecesarias en HTML5
         .trim();
 
     expect(normalizeHtml(outputHtml)).toEqual(normalizeHtml(expectedHtml));
@@ -90,7 +89,6 @@ describe('PageLoader with Fixtures', () => {
     const outputFiles = await fs.readdir(outputFilesDir);
     const expectedFiles = await fs.readdir(expectedFilesDir);
 
-    // 🔥 SOLUCIÓN: Remueve "google-com-" de los nombres de los archivos antes de comparar
     expect(outputFiles.map((f) => f.replace('google-com-', '')).sort()).toEqual(expectedFiles.sort());
 
     // Verificar el contenido de cada archivo
