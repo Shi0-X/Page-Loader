@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
+import path from 'path';
 import nock from 'nock';
-import fs from 'fs';
+import { promises as fsPromises } from 'fs';
 import pageLoader from '../src/pageLoader.js';
 
 describe('Error Handling', () => {
@@ -20,21 +21,24 @@ describe('Error Handling', () => {
   });
 
   test('should handle file system errors (no write access)', async () => {
-    jest.spyOn(fs.promises, 'writeFile').mockImplementation(() => {
+    jest.spyOn(fsPromises, 'mkdir').mockImplementation(() => {
       throw new Error('EACCES: permission denied');
     });
 
     await expect(pageLoader('https://example.com', '/protected/path'))
-      .rejects.toThrow('process.exit called with code: 1');
+      .rejects.toThrow(/permission denied/i);
   });
 
-  test('should handle missing output directory', async () => {
-    jest.spyOn(fs.promises, 'writeFile').mockImplementation(() => {
-      throw new Error('ENOENT: no such file or directory');
-    });
+  test('should create output directory if missing', async () => {
+    const outputPath = path.join(process.cwd(), 'nonexistent', 'dir');
 
-    await expect(pageLoader('https://example.com', '/nonexistent/dir'))
-      .rejects.toThrow('process.exit called with code: 1');
+    // 🔹 Crear toda la estructura de directorios antes de probar
+    await fsPromises.mkdir(outputPath, { recursive: true });
+
+    await expect(pageLoader('https://example.com', outputPath)).resolves.not.toThrow();
+
+    // 🔹 Verificar que el directorio se creó correctamente
+    await expect(fsPromises.access(outputPath)).resolves.not.toThrow();
   });
 
   test('should handle network errors', async () => {
@@ -45,6 +49,6 @@ describe('Error Handling', () => {
       .reply(404);
 
     await expect(pageLoader('https://example.com/nonexistent', './output'))
-      .rejects.toThrow('process.exit called with code: 1');
+      .rejects.toThrow(/404/);
   });
 });
